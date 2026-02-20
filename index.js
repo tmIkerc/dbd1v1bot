@@ -4,15 +4,15 @@ const {
     Events,
     ActionRowBuilder,
     ButtonBuilder,
-    ButtonStyle
+    ButtonStyle,
+    ChannelType
 } = require('discord.js');
 
 const fs = require('fs');
 
 const TOKEN = process.env.TOKEN;
-const RANKING_CHANNEL_NAME = 'ranking-1v1';
 const DATA_FILE = './mmr.json';
-let activeDuels = new Map();
+const RANKING_CHANNEL_NAME = 'ranking-1v1';
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds]
@@ -23,13 +23,16 @@ if (!fs.existsSync(DATA_FILE)) {
 }
 
 function getData() {
-    const data = JSON.parse(fs.readFileSync(DATA_FILE));
-    return data;
+    return JSON.parse(fs.readFileSync(DATA_FILE));
 }
 
-function ensurePlayer(data, userId) {
-    if (!data[userId]) {
-        data[userId] = {
+function saveData(data) {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+}
+
+function ensurePlayer(data, id) {
+    if (!data[id]) {
+        data[id] = {
             mmr: 1000,
             wins: 0,
             losses: 0,
@@ -37,23 +40,16 @@ function ensurePlayer(data, userId) {
         };
     }
 }
-async function updateRankingChannel(guild) {
-    const channel = guild.channels.cache.find(c => c.name === RANKING_CHANNEL_NAME);
-    if (!channel) return;
 
-    const data = getData();
-    const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]);
+function calculateElo(winnerMMR, loserMMR) {
+    const K = 32;
+    const expectedWin = 1 / (1 + Math.pow(10, (loserMMR - winnerMMR) / 400));
+    const expectedLose = 1 / (1 + Math.pow(10, (winnerMMR - loserMMR) / 400));
 
-    let leaderboard = '🔥 **RANKING 1v1** 🔥\n\n';
+    const newWinner = Math.round(winnerMMR + K * (1 - expectedWin));
+    const newLoser = Math.round(loserMMR + K * (0 - expectedLose));
 
-    sorted.forEach((player, index) => {
-        leaderboard += `#${index + 1} <@${player[0]}> - ${player[1]} MMR\n`;
-    });
-
-    const messages = await channel.messages.fetch();
-    await channel.bulkDelete(messages);
-
-    await channel.send(leaderboard);
+    return { winner: newWinner, loser: newLoser };
 }
 
 client.once(Events.ClientReady, () => {
@@ -68,10 +64,11 @@ client.on(Events.InteractionCreate, async interaction => {
 
     // 🔹 MMR
     if (interaction.commandName === 'mmr') {
-        const user = interaction.user.id;
-        if (!data[user]) data[user] = 1000;
+
+        ensurePlayer(data, interaction.user.id);
         saveData(data);
-        await interaction.reply(`Tu MMR es: ${data[user]}`);
+
+        await interaction.reply(`🏆 Tu MMR es: **${data[interaction.user.id].mmr}**`);
     }
 
     // 🔹 RESULTADO
@@ -79,6 +76,9 @@ client.on(Events.InteractionCreate, async interaction => {
 
         const ganador = interaction.options.getUser('ganador');
         const perdedor = interaction.options.getUser('perdedor');
+
+        ensurePlayer(data, ganador.id);
+        ensurePlayer(data, perdedor.id);
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -92,7 +92,7 @@ client.on(Events.InteractionCreate, async interaction => {
         );
 
         await interaction.reply({
-            content: `Resultado propuesto:\n🏆 ${ganador}\n💀 ${perdedor}\n\nAmbos deben confirmar.`,
+            content: `🏆 ${ganador} vs 💀 ${perdedor}\nAmbos deben confirmar.`,
             components: [row]
         });
 
@@ -104,7 +104,7 @@ client.on(Events.InteractionCreate, async interaction => {
             time: 60000
         });
 
-        let confirmed = new Set();
+        const confirmed = new Set();
 
         collector.on('collect', async i => {
 
@@ -115,69 +115,66 @@ client.on(Events.InteractionCreate, async interaction => {
 
                 if (confirmed.size === 2) {
 
-                    if (!data[ganador.id]) data[ganador.id] = 1000;
-                    if (!data[perdedor.id]) data[perdedor.id] = 1000;
+                    const result = calculateElo(
+                        data[ganador.id].mmr,
+                        data[perdedor.id].mmr
+                    );
 
-                    const result = calculateElo(data[ganador.id], data[perdedor.id]);
+                    data[ganador.id].mmr = result.winner;
+                    data[perdedor.id].mmr = result.loser;
 
-                   ensurePlayer(data, ganador.id);
-ensurePlayer(data, perdedor.id);
+                    data[ganador.id].wins++;
+                    data[perdedor.id].losses++;
 
-data[ganador.id].mmr = result.winner;
-data[perdedor.id].mmr = result.loser;
+                    const today = new Date().toISOString().split('T')[0];
 
-data[ganador.id].wins += 1;
-data[perdedor.id].losses += 1;
+                    data[ganador.id].history.push({
+                        opponent: perdedor.id,
+                        result: "win",
+                        date: today
+                    });
 
-const today = new Date().toISOString().split('T')[0];
+                    data[perdedor.id].history.push({
+                        opponent: ganador.id,
+                        result: "loss",
+                        date: today
+                    });
 
-data[ganador.id].history.push({
-    opponent: perdedor.id,
-    result: "win",
-    date: today
-});
+                    saveData(data);
 
-data[perdedor.id].history.push({
-    opponent: ganador.id,
-    result: "loss",
-    date: today
-});
+                    await interaction.followUp('✅ Resultado confirmado y MMR actualizado.');
+                    collector.stop();
+                }
+            }
 
-    saveData(data);   // si tienes función saveData
+            if (i.customId === 'cancel') {
+                await interaction.followUp('❌ Resultado cancelado.');
+                collector.stop();
+            }
+        });
+    }
 
-}   // ← cierra if (confirmed.size === 2)
-}   // ← cierra if (i.customId === 'confirm')
-                    
-if (i.customId === 'cancel') {
-    await interaction.followUp('❌ Resultado cancelado.');
-    collector.stop();
-}
-
-});   // ← cierra collector.on
-        
-        }   // ← cierra else if (interaction.commandName === 'resultado')
-    
-
-    // 🔹 BUSCAR 1V1
+    // 🔹 BUSCAR
     else if (interaction.commandName === 'buscar') {
 
         const user = interaction.user;
+        ensurePlayer(data, user.id);
+        saveData(data);
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId('aceptar_duelo')
+                .setCustomId('aceptar')
                 .setLabel('⚔️ Aceptar duelo')
                 .setStyle(ButtonStyle.Primary)
         );
-const data = getData();
-ensurePlayer(data, user.id);
-      await interaction.reply({
-    content: `⚔️ ${user} está buscando 1v1!\n🏆 ELO: **${data[user.id].mmr}**\n¿Quién se atreve?`,
-    components: [row]
-});
+
+        await interaction.reply({
+            content: `⚔️ ${user} busca 1v1\n🏆 ELO: **${data[user.id].mmr}**`,
+            components: [row]
+        });
 
         const filter = i =>
-            i.customId === 'aceptar_duelo' &&
+            i.customId === 'aceptar' &&
             i.user.id !== user.id;
 
         const collector = interaction.channel.createMessageComponentCollector({
@@ -185,66 +182,53 @@ ensurePlayer(data, user.id);
             time: 60000
         });
 
-collector.on('collect', async i => {
+        collector.on('collect', async i => {
 
-    const guild = interaction.guild;
-    const player1 = user;
-    const player2 = i.user;
+            const guild = interaction.guild;
+            const player1 = user;
+            const player2 = i.user;
 
-    // Crear categoría
-    const category = await guild.channels.create({
-        name: `DUEL ${player1.username} vs ${player2.username}`,
-        type: 4
-    });
+            const category = await guild.channels.create({
+                name: `DUEL ${player1.username} vs ${player2.username}`,
+                type: ChannelType.GuildCategory
+            });
 
-    activeDuels.set(player1.id, category.id);
-    activeDuels.set(player2.id, category.id);
+            await category.permissionOverwrites.set([
+                {
+                    id: guild.roles.everyone.id,
+                    deny: ['ViewChannel']
+                },
+                {
+                    id: player1.id,
+                    allow: ['ViewChannel', 'SendMessages', 'Connect', 'Speak']
+                },
+                {
+                    id: player2.id,
+                    allow: ['ViewChannel', 'SendMessages', 'Connect', 'Speak']
+                }
+            ]);
 
-    // Permisos
-    await category.permissionOverwrites.set([
-        {
-            id: guild.roles.everyone.id,
-            deny: ['ViewChannel']
-        },
-        {
-            id: player1.id,
-            allow: ['ViewChannel', 'SendMessages', 'Connect', 'Speak']
-        },
-        {
-            id: player2.id,
-            allow: ['ViewChannel', 'SendMessages', 'Connect', 'Speak']
-        }
-    ]);
+            await guild.channels.create({
+                name: `duelo-${player1.username}-vs-${player2.username}`,
+                type: ChannelType.GuildText,
+                parent: category.id
+            });
 
-    // Canal texto
-    await guild.channels.create({
-        name: `duelo-${player1.username}-vs-${player2.username}`,
-        type: 0,
-        parent: category.id
-    });
+            await guild.channels.create({
+                name: `🔊 duelo-${player1.username}-vs-${player2.username}`,
+                type: ChannelType.GuildVoice,
+                parent: category.id
+            });
 
-    // Canal voz
-    await guild.channels.create({
-        name: `🔊 duelo-${player1.username}-vs-${player2.username}`,
-        type: 2,
-        parent: category.id
-    });
+            await i.update({
+                content: `🔥 Duelo creado entre ${player1} y ${player2}`,
+                components: []
+            });
 
-    await i.update({
-        content: `🔥 Duelo creado entre ${player1} y ${player2}`,
-        components: []
-    });
+            collector.stop();
+        });
+    }
 
-    collector.stop();
 });
 
-}); // ← cierra client.on(InteractionCreate)
-
 client.login(TOKEN);
-
-
-
-
-
-
-
