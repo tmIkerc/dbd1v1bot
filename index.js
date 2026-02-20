@@ -176,11 +176,9 @@ ensurePlayer(data, user.id);
         });
 
 collector.on('collect', async i => {
-
-    const guild = interaction.guild;
-    const player1 = user;
-    const player2 = i.user;
-
+   ...
+});
+                    
     // Crear categoría
     const category = await guild.channels.create({
         name: `DUEL ${player1.username} vs ${player2.username}`,
@@ -234,6 +232,7 @@ activeDuels.set(player2.id, category.id);
 client.login(TOKEN);
     }
 }
+
 
 
 
