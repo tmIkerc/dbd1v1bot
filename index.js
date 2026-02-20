@@ -20,6 +20,32 @@ const client = new Client({
     intents: [GatewayIntentBits.Guilds]
 });
 
+const commands = [
+    new SlashCommandBuilder()
+        .setName('mmr')
+        .setDescription('Ver tu MMR'),
+
+    new SlashCommandBuilder()
+        .setName('resultado')
+        .setDescription('Registrar resultado 1v1')
+        .addUserOption(option =>
+            option.setName('ganador')
+                .setDescription('Jugador ganador')
+                .setRequired(true))
+        .addUserOption(option =>
+            option.setName('perdedor')
+                .setDescription('Jugador perdedor')
+                .setRequired(true)),
+
+    new SlashCommandBuilder()
+        .setName('buscar')
+        .setDescription('Buscar rival para 1v1'),
+
+    new SlashCommandBuilder()
+        .setName('historial')
+        .setDescription('Ver tu historial de partidas')
+].map(command => command.toJSON());
+
 if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(DATA_FILE, JSON.stringify({}));
 }
@@ -54,8 +80,24 @@ function calculateElo(winnerMMR, loserMMR) {
     return { winner: newWinner, loser: newLoser };
 }
 
-client.once(Events.ClientReady, () => {
+client.once(Events.ClientReady, async () => {
     console.log(`Bot listo como ${client.user.tag}`);
+
+    const rest = new REST({ version: '10' }).setToken(TOKEN);
+
+    try {
+        await rest.put(
+            Routes.applicationGuildCommands(
+                client.user.id,
+                '1415822439325241416' // TU SERVER ID
+            ),
+            { body: commands }
+        );
+
+        console.log('Comandos registrados correctamente.');
+    } catch (error) {
+        console.error(error);
+    }
 });
 
 client.on(Events.InteractionCreate, async interaction => {
@@ -260,5 +302,6 @@ else if (interaction.commandName === 'historial') {
 });
 
 client.login(TOKEN);
+
 
 
