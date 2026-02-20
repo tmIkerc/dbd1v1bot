@@ -235,14 +235,10 @@ activeDuels.set(player2.id, category.id);
 
     collector.stop();
 });
-    }
 
-});
+}); // ← cierra client.on(InteractionCreate)
 
 client.login(TOKEN);
-    }
-}
-
 
 
 
