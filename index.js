@@ -186,22 +186,24 @@ ensurePlayer(data, user.id);
         });
 
 collector.on('collect', async i => {
-   
-});
-                    
+
+    const guild = interaction.guild;
+    const player1 = user;
+    const player2 = i.user;
+
     // Crear categoría
     const category = await guild.channels.create({
         name: `DUEL ${player1.username} vs ${player2.username}`,
         type: 4
     });
 
-activeDuels.set(player1.id, category.id);
-activeDuels.set(player2.id, category.id);
+    activeDuels.set(player1.id, category.id);
+    activeDuels.set(player2.id, category.id);
 
-    // Permisos base
+    // Permisos
     await category.permissionOverwrites.set([
         {
-            id: guild.roles.everyone,
+            id: guild.roles.everyone.id,
             deny: ['ViewChannel']
         },
         {
@@ -214,14 +216,14 @@ activeDuels.set(player2.id, category.id);
         }
     ]);
 
-    // Canal de texto
+    // Canal texto
     await guild.channels.create({
         name: `duelo-${player1.username}-vs-${player2.username}`,
         type: 0,
         parent: category.id
     });
 
-    // Canal de voz
+    // Canal voz
     await guild.channels.create({
         name: `🔊 duelo-${player1.username}-vs-${player2.username}`,
         type: 2,
@@ -229,7 +231,7 @@ activeDuels.set(player2.id, category.id);
     });
 
     await i.update({
-        content: `🔥 Duelo creado entre ${player1} y ${player2}.\nSe ha creado un canal privado.`,
+        content: `🔥 Duelo creado entre ${player1} y ${player2}`,
         components: []
     });
 
@@ -239,6 +241,7 @@ activeDuels.set(player2.id, category.id);
 }); // ← cierra client.on(InteractionCreate)
 
 client.login(TOKEN);
+
 
 
 
