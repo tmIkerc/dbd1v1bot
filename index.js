@@ -186,7 +186,7 @@ ensurePlayer(data, user.id);
         });
 
 collector.on('collect', async i => {
-   ...
+   
 });
                     
     // Crear categoría
@@ -242,6 +242,7 @@ activeDuels.set(player2.id, category.id);
 client.login(TOKEN);
     }
 }
+
 
 
 
