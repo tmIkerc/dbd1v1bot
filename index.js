@@ -23,22 +23,20 @@ if (!fs.existsSync(DATA_FILE)) {
 }
 
 function getData() {
-    return JSON.parse(fs.readFileSync(DATA_FILE));
+    const data = JSON.parse(fs.readFileSync(DATA_FILE));
+    return data;
 }
 
-function saveData(data) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+function ensurePlayer(data, userId) {
+    if (!data[userId]) {
+        data[userId] = {
+            mmr: 1000,
+            wins: 0,
+            losses: 0,
+            history: []
+        };
+    }
 }
-
-function calculateElo(winnerMMR, loserMMR) {
-    const K = 32;
-    const expectedWin = 1 / (1 + Math.pow(10, (loserMMR - winnerMMR) / 400));
-    return {
-        winner: Math.round(winnerMMR + K * (1 - expectedWin)),
-        loser: Math.round(loserMMR - K * (1 - expectedWin))
-    };
-}
-
 async function updateRankingChannel(guild) {
     const channel = guild.channels.cache.find(c => c.name === RANKING_CHANNEL_NAME);
     if (!channel) return;
@@ -122,33 +120,28 @@ client.on(Events.InteractionCreate, async interaction => {
 
                     const result = calculateElo(data[ganador.id], data[perdedor.id]);
 
-                    data[ganador.id] = result.winner;
-                    data[perdedor.id] = result.loser;
+                   ensurePlayer(data, ganador.id);
+ensurePlayer(data, perdedor.id);
 
-                    saveData(data);
+data[ganador.id].mmr = result.winner;
+data[perdedor.id].mmr = result.loser;
 
-                    await interaction.followUp(
-                        `✅ Resultado confirmado.\n🏆 ${ganador.username}: ${result.winner}\n💀 ${perdedor.username}: ${result.loser}`
-                    );
+data[ganador.id].wins += 1;
+data[perdedor.id].losses += 1;
 
-                    await updateRankingChannel(interaction.guild);
+const today = new Date().toISOString().split('T')[0];
 
-const duelCategoryId = activeDuels.get(ganador.id);
+data[ganador.id].history.push({
+    opponent: perdedor.id,
+    result: "win",
+    date: today
+});
 
-if (duelCategoryId) {
-    const duelCategory = interaction.guild.channels.cache.get(duelCategoryId);
-
-    if (duelCategory) {
-        await duelCategory.delete();
-    }
-
-    activeDuels.delete(ganador.id);
-    activeDuels.delete(perdedor.id);
-}
-                    collector.stop();
-                }
-            }
-
+data[perdedor.id].history.push({
+    opponent: ganador.id,
+    result: "loss",
+    date: today
+});
             if (i.customId === 'cancel') {
                 await interaction.followUp('❌ Resultado cancelado.');
                 collector.stop();
@@ -167,11 +160,12 @@ if (duelCategoryId) {
                 .setLabel('⚔️ Aceptar duelo')
                 .setStyle(ButtonStyle.Primary)
         );
-
-        await interaction.reply({
-            content: `⚔️ ${user} está buscando 1v1!\n¿Quién se atreve?`,
-            components: [row]
-        });
+const data = getData();
+ensurePlayer(data, user.id);
+      await interaction.reply({
+    content: `⚔️ ${user} está buscando 1v1!\n🏆 ELO: **${data[user.id].mmr}**\n¿Quién se atreve?`,
+    components: [row]
+});
 
         const filter = i =>
             i.customId === 'aceptar_duelo' &&
@@ -239,5 +233,7 @@ activeDuels.set(player2.id, category.id);
 });
 
 client.login(TOKEN);
+    }
+}
 
 
