@@ -10,6 +10,8 @@ const {
 
 const fs = require('fs');
 
+const { REST, Routes, SlashCommandBuilder } = require('discord.js');
+
 const TOKEN = process.env.TOKEN;
 const DATA_FILE = './mmr.json';
 const RANKING_CHANNEL_NAME = 'ranking-1v1';
@@ -258,4 +260,5 @@ else if (interaction.commandName === 'historial') {
 });
 
 client.login(TOKEN);
+
 
