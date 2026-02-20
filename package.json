@@ -1,15 +1,12 @@
 {
   "name": "dbd1v1bot",
   "version": "1.0.0",
+  "description": "DBD 1v1 Discord Bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.0.0"
   }
 }
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
-    "discord.js": "^14.25.1"
-  }
