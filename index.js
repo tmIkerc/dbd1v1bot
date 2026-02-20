@@ -9,7 +9,7 @@ const {
 
 const fs = require('fs');
 
-const TOKEN = 'MTQ3NDIzNTkzMjI5ODE4NjgxNQ.G9MthC.SQt4IDOM80-s5Zy2ApeD_H-_JopGEQL21Qfvh4';
+const TOKEN = process.env.TOKEN;
 const RANKING_CHANNEL_NAME = 'ranking-1v1';
 const DATA_FILE = './mmr.json';
 let activeDuels = new Map();
@@ -239,4 +239,5 @@ activeDuels.set(player2.id, category.id);
 });
 
 client.login(TOKEN);
+
 
