@@ -153,7 +153,33 @@ client.on(Events.InteractionCreate, async interaction => {
             }
         });
     }
+        
+// 🔹 HISTORIAL
+else if (interaction.commandName === 'historial') {
 
+    const data = getData();
+    const userId = interaction.user.id;
+
+    ensurePlayer(data, userId);
+
+    const history = data[userId].history;
+
+    if (history.length === 0) {
+        return interaction.reply('📭 No tienes partidas registradas.');
+    }
+
+    let message = '📜 **Tu historial reciente:**\n\n';
+
+    const lastMatches = history.slice(-10).reverse();
+
+    lastMatches.forEach(match => {
+        const resultEmoji = match.result === "win" ? "🟢" : "🔴";
+        message += `${resultEmoji} vs <@${match.opponent}> — ${match.date}\n`;
+    });
+
+    await interaction.reply(message);
+}
+    
     // 🔹 BUSCAR
     else if (interaction.commandName === 'buscar') {
 
@@ -232,3 +258,4 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 client.login(TOKEN);
+
