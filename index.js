@@ -142,13 +142,20 @@ data[perdedor.id].history.push({
     result: "loss",
     date: today
 });
+
+    saveData(data);   // si tienes función saveData
+
+}   // ← cierra if (confirmed.size === 2)
+}   // ← cierra if (i.customId === 'confirm')
                     
 if (i.customId === 'cancel') {
     await interaction.followUp('❌ Resultado cancelado.');
     collector.stop();
 }
 
-});
+});   // ← cierra collector.on
+        
+        }   // ← cierra else if (interaction.commandName === 'resultado')
     
 
     // 🔹 BUSCAR 1V1
@@ -235,6 +242,7 @@ activeDuels.set(player2.id, category.id);
 client.login(TOKEN);
     }
 }
+
 
 
 
