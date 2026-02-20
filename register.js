@@ -43,4 +43,9 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
     } catch (error) {
         console.error(error);
     }
+
+    new SlashCommandBuilder()
+    .setName('historial')
+    .setDescription('Ver tu historial de partidas')
+    
 })();
