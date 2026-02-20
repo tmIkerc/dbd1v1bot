@@ -142,12 +142,11 @@ data[perdedor.id].history.push({
     result: "loss",
     date: today
 });
-            if (i.customId === 'cancel') {
-                await interaction.followUp('❌ Resultado cancelado.');
-                collector.stop();
-            }
-        });
-    }
+if (i.customId === 'cancel') {
+    await interaction.followUp('❌ Resultado cancelado.');
+    collector.stop();
+});
+    
 
     // 🔹 BUSCAR 1V1
     else if (interaction.commandName === 'buscar') {
@@ -235,5 +234,6 @@ activeDuels.set(player2.id, category.id);
 client.login(TOKEN);
     }
 }
+
 
 
